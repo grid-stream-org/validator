@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/grid-stream-org/batcher/pkg/logger"
 	"github.com/grid-stream-org/batcher/pkg/sigctx"
 	"github.com/grid-stream-org/validator/internal/config"
+	"github.com/grid-stream-org/validator/internal/server"
 	"go.uber.org/multierr"
 )
 
@@ -37,9 +40,24 @@ func run() (err error) {
 		return err
 	}
 
-	log.Info("hello")
-	return err
+	log.Info("Starting Validator Server...")
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	// Listen for system interrupt signals
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+		<-ch
+		cancel() // Cancel context when signal is received
+	}()
+
+	// Start the gRPC server
+	if err := server.Start(ctx, cfg, log); err != nil {
+		return err
+	}
+	return nil
 }
 
 func handleErrors(err error, log *slog.Logger) int {

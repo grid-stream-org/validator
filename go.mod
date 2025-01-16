@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/grid-stream-org/batcher v0.0.0-20250113153758-5ee2ed0e0433
-	github.com/grid-stream-org/grid-stream-protos v0.1.4
+	github.com/grid-stream-org/grid-stream-protos v0.2.0
 	github.com/knadh/koanf/parsers/json v0.1.0
 	github.com/knadh/koanf/providers/file v1.1.2
 	github.com/knadh/koanf/v2 v2.1.2

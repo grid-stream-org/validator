@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 
+	"github.com/grid-stream-org/batcher/pkg/logger"
 	pb "github.com/grid-stream-org/grid-stream-protos/gen/validator/v1" // Import the generated protobuf package
+	"github.com/grid-stream-org/validator/internal/config"
 	"google.golang.org/grpc"
 )
 
@@ -16,38 +18,20 @@ type ValidatorServer struct {
 
 // ValidateAverageOutputs handles validation requests
 func (s *ValidatorServer) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAverageOutputsRequest) (*pb.ValidateAverageOutputsResponse, error) {
-	log.Println("Received validation request")
+	logger.Default().Info("Recieved validation request")
 
 
-	// logic
-	var errors []*pb.ValidationError
-	for _, avg := range req.Averages {
-		if avg.AverageOutput < 50.0 { 
-			errors = append(errors, &pb.ValidationError{
-				ProjectId: avg.ProjectId,
-				Message:   "Average output below threshold",
-			})
-		}
-	}
-
-	success := len(errors) == 0
-	message := "Validation successful"
-	if !success {
-		message = "Validation failed"
-	}
-
-	response := &pb.ValidateAverageOutputsResponse{
-		Success: success,
-		Message: message,
-		Errors:  errors,
-	}
-
-	log.Printf("Validation completed: %s", message)
-	return response, nil
+	return nil, nil
 }
 
-// StartValidatorServer starts the gRPC server for the ValidatorService
-func StartValidatorServer(address string) error {
+func (s *ValidatorServer) NotifyProject(ctx context.Context, req *pb.NotifyProjectRequest) (*pb.NotifyProjectResponse, error) {
+		logger.Default().Info("Recieved new project", "projectId", req.ProjectId)
+		return nil, nil
+}
+
+func Start(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	address := cfg.Server.Address // Dynamically read server address from config
+
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
@@ -56,6 +40,17 @@ func StartValidatorServer(address string) error {
 	grpcServer := grpc.NewServer()
 	pb.RegisterValidatorServiceServer(grpcServer, &ValidatorServer{})
 
-	log.Printf("Validator server is listening on %s", address)
-	return grpcServer.Serve(lis)
+	// Run the server in a goroutine to allow for graceful shutdown
+	go func() {
+		log.Info("Validator server is running on ", "address", address)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Error("Failed to serve gRPC server", "error", err)
+		}
+	}()
+
+	// Wait for context cancellation
+	<-ctx.Done()
+	log.Info("Shutting down gRPC server...")
+	grpcServer.GracefulStop()
+	return nil
 }

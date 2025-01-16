@@ -3,5 +3,8 @@
         "level": "DEBUG",
         "format": "json",
         "output": "stdout"
-    }
+    },
+      "server": {
+    "address": "localhost:3012"
+  }
 }
