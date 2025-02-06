@@ -15,6 +15,10 @@ type Config struct {
 	Server struct {
 		Address string `koanf:"address"` // Add server address configuration
 	} `koanf:"server"`
+	SendGrid struct {
+		Api string `koanf:"key"`
+		Sender string `koanf:"sender"`
+	} `koanf:"sendgrid_api"`
 }
 
 func Load() (*Config, error){

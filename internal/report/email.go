@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
+	"github.com/grid-stream-org/batcher/pkg/logger"
+	"github.com/grid-stream-org/validator/internal/config"
 	"github.com/grid-stream-org/validator/internal/types"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -13,7 +14,6 @@ import (
 
 //API needs to change
 const apiURL = "http://your-api-url.com/user-email?projectID="
-var sendgridAPIKey = os.Getenv("SG_API")
 
 func SendUserReports(v types.Validator, projectID string) error {
     userEmail, err := getUserEmail(projectID)
@@ -59,11 +59,50 @@ func getUserEmail(projectID string) (string, error) {
 
 //Send Email to user
 func sendEmail(to, subject, body string) error {
-    from := mail.NewEmail("GridStream", "coopdickson@gmail.com")
-    toEmail := mail.NewEmail("Cooper Dickson", to)
-    message := mail.NewSingleEmail(from, subject, toEmail, body, body)
+	cfg, err := config.Load()
+	if err != nil{
+		return err
+	}
+	from := mail.NewEmail("GridStream Reports", cfg.SendGrid.Api)
+	toMail := mail.NewEmail(to, to)
+	content := mail.NewContent("text/plain", body)
 
-    client := sendgrid.NewSendClient(sendgridAPIKey)
-    _, err := client.Send(message)
-    return err
+
+	message := mail.NewV3MailInit(from, subject, toMail, content)
+
+    client := sendgrid.NewSendClient(cfg.SendGrid.Api)
+	response, err := client.Send(message)
+	if err != nil {
+		return err
+	}
+	
+    logger.Default().Info("Email sent with code", response)
+	return nil
+
+}
+
+func sendTestEmail(config *config.Config) error {
+	sendgridAPIKey := config.SendGrid.Api // Ensure this is set in your environment
+	if sendgridAPIKey == "" {
+		return fmt.Errorf("SendGrid API Key is not set")
+	}
+
+	from := mail.NewEmail("GridStream Reports", config.SendGrid.Api)
+	to := mail.NewEmail("Test Cooper", "coopdickson@gmail.com")
+	subject := "Test Email from Go"
+	content := mail.NewContent("text/plain", "Hello, this is a test email from Go using SendGrid!")
+
+	message := mail.NewV3MailInit(from, subject, to, content)
+
+	client := sendgrid.NewSendClient(sendgridAPIKey)
+	response, err := client.Send(message)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Email sent! Status Code:", response.StatusCode)
+	fmt.Println("Response Body:", response.Body)
+	fmt.Println("Response Headers:", response.Headers)
+
+	return nil
 }

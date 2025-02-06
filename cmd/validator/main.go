@@ -24,6 +24,7 @@ func main() {
 	}
 	log.Info("Done", "exitCode", exitCode)
 	os.Exit(exitCode)
+
 }
 
 func run() (err error) {

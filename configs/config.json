@@ -4,7 +4,12 @@
         "format": "json",
         "output": "stdout"
     },
-      "server": {
+    "server": {
     "address": "localhost:3012"
+  },
+
+  "sendgrid_api": {
+    "key": "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",
+    "sender": "reports@gridstream.app"
   }
 }
