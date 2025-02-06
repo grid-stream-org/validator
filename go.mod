@@ -9,6 +9,7 @@ require (
 	github.com/knadh/koanf/providers/file v1.1.2
 	github.com/knadh/koanf/v2 v2.1.2
 	github.com/pkg/errors v0.9.1
+	github.com/sendgrid/sendgrid-go v3.16.0+incompatible
 	go.uber.org/multierr v1.11.0
 	google.golang.org/grpc v1.67.1
 )
@@ -19,6 +20,7 @@ require (
 	github.com/knadh/koanf/maps v0.1.1 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/sendgrid/rest v2.6.9+incompatible // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
