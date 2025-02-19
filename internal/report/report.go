@@ -7,10 +7,8 @@ import (
 )
 
 func GenerateReport(v types.Validator, projectID string) string {
-    v.GetSummaryMutex().Lock()
-    defer v.GetSummaryMutex().Unlock()
-
     summary, exists := v.GetSummary(projectID)
+
     if !exists {
         return "No validation data available for this project."
     }

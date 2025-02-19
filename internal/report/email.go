@@ -23,6 +23,7 @@ func SendUserReports(v types.Validator, projectID string) error {
     }
 
     reportContent := GenerateReport(v, projectID)
+    logger.Default().Info("SENDING EMAILS", "report content", reportContent)
 
     err = sendEmail(userEmail, "Your Demand Response Event Report", reportContent)
     if err != nil {
@@ -59,11 +60,13 @@ func getUserEmail(projectID string) (string, error) {
 
 //Send Email to user
 func sendEmail(to, subject, body string) error {
+    logger.Default().Info("ATEEMPT TO SEND EMAIL")
+
 	cfg, err := config.Load()
 	if err != nil{
 		return err
 	}
-	from := mail.NewEmail("GridStream Reports", cfg.SendGrid.Api)
+	from := mail.NewEmail("GridStream Reports", cfg.SendGrid.Sender)
 	toMail := mail.NewEmail(to, to)
 	content := mail.NewContent("text/plain", body)
 
@@ -76,33 +79,7 @@ func sendEmail(to, subject, body string) error {
 		return err
 	}
 	
-    logger.Default().Info("Email sent with code", response)
+    logger.Default().Info("EMAIL SENT", "response", response)
 	return nil
 
-}
-
-func sendTestEmail(config *config.Config) error {
-	sendgridAPIKey := config.SendGrid.Api // Ensure this is set in your environment
-	if sendgridAPIKey == "" {
-		return fmt.Errorf("SendGrid API Key is not set")
-	}
-
-	from := mail.NewEmail("GridStream Reports", config.SendGrid.Api)
-	to := mail.NewEmail("Test Cooper", "coopdickson@gmail.com")
-	subject := "Test Email from Go"
-	content := mail.NewContent("text/plain", "Hello, this is a test email from Go using SendGrid!")
-
-	message := mail.NewV3MailInit(from, subject, to, content)
-
-	client := sendgrid.NewSendClient(sendgridAPIKey)
-	response, err := client.Send(message)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Email sent! Status Code:", response.StatusCode)
-	fmt.Println("Response Body:", response.Body)
-	fmt.Println("Response Headers:", response.Headers)
-
-	return nil
 }

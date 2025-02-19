@@ -1,9 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"log"
 	"log/slog"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -22,9 +26,34 @@ type ValidatorServer struct {
     lastRequestTime time.Time
 }
 
+type FaultNotification struct {
+    ProjectID string  `json:"project_id"`
+    Message   string  `json:"message"`
+    StartTime string  `json:"start_time"`
+    EndTime   string  `json:"end_time"`
+    Average   float64 `json:"average"`
+}
+
+func sendFaultNotification(fault FaultNotification) {
+    frontendURL := "http://frontend-app.com/api/faults" // NEEDS TO BE REPLACED
+
+    jsonData, err := json.Marshal(fault)
+    if err != nil {
+        log.Println("Error marshalling JSON:", err)
+        return
+    }
+
+    resp, err := http.Post(frontendURL, "application/json", bytes.NewBuffer(jsonData))
+    if err != nil {
+        log.Println("Error sending fault notification:", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    log.Println("Fault notification sent successfully, response:", resp.Status)
+}
+
 func (s *ValidatorServer) GetSummary(projectID string) (*types.Summary, bool) {
-    s.Mu.Lock()
-    defer s.Mu.Unlock()
     summary, exists := s.Summaries[projectID]
     return summary, exists
 }
@@ -48,6 +77,10 @@ func (s *ValidatorServer) ValidateAverageOutputs(ctx context.Context, req *pb.Va
     s.Mu.Lock() // Lock to prevent concurrent map modification
     defer s.Mu.Unlock()
 
+    // Ensure the map is initialized before using it
+    if s.Summaries == nil {
+        s.Summaries = make(map[string]*types.Summary) 
+    }
     s.lastRequestTime = time.Now() // Reset the timer
     go s.monitorDREvent() // Start monitoring if not already
 
@@ -85,6 +118,17 @@ func (s *ValidatorServer) ValidateAverageOutputs(ctx context.Context, req *pb.Va
                 Average:   avg.AverageOutput,
             }
             summary.ViolationRecords = append(summary.ViolationRecords, fault)
+
+
+            // Notify the frontend
+            notification := FaultNotification{
+                ProjectID: avg.ProjectId,
+                Message:   "Validation is below the threshold",
+                StartTime: avg.StartTime,
+                EndTime:   avg.EndTime,
+                Average:   avg.AverageOutput,
+            }
+            go sendFaultNotification(notification)
         }
     }
 
@@ -111,10 +155,12 @@ func (s *ValidatorServer) monitorDREvent() {
             s.Mu.Unlock()
 
             // Generate & Send Reports
-            for projectId := range s.Summaries {
+            for projectId, summary := range s.Summaries {
+                logger.Default().Info("Sending Email for", "projectId", projectId)
+                summary.TimeEnded = time.Now().Format(time.RFC3339) 
                 report.SendUserReports(s, projectId)
             } 
-            return
+            continue 
         }
         s.Mu.Unlock()
     }
