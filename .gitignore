@@ -22,3 +22,6 @@ gen/
 
 # Output files
 out/
+
+# Config file
+configs/config.json
