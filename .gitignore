@@ -5,6 +5,7 @@ build
 *.dll
 *.so
 *.dylib
+.env
 
 # Test binary, built with `go test -c`
 *.test
@@ -21,3 +22,6 @@ gen/
 
 # Output files
 out/
+
+# Config file
+configs/config.json

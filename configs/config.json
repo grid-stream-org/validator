@@ -1,7 +1,0 @@
-{
-    "log":{
-        "level": "DEBUG",
-        "format": "json",
-        "output": "stdout"
-    }
-}

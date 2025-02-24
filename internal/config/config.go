@@ -12,7 +12,15 @@ import (
 
 type Config struct {
 	Log *logger.Config `koanf:"log"`
+	Server struct {
+		Address string `koanf:"address"` // Add server address configuration
+	} `koanf:"server"`
+	SendGrid struct {
+		Api string `koanf:"key"`
+		Sender string `koanf:"sender"`
+	} `koanf:"sendgrid_api"`
 }
+
 func Load() (*Config, error){
 	k:= koanf.New(".")
 	path := filepath.Join("configs", "config.json")
