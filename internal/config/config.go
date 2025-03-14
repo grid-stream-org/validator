@@ -23,7 +23,7 @@ type Config struct {
 
 func Load() (*Config, error){
 	k:= koanf.New(".")
-	path := filepath.Join("configs", "config.json")
+	path := filepath.Join("./internal/config/", "config.json")
 	if err := k.Load(file.Provider(path), json.Parser()); err != nil{
 		return nil, errors.WithStack(err)
 	}
