@@ -21,3 +21,11 @@ type Validator interface {
     GetSummary(projectID string) (*Summary, bool)
     GetSummaryMutex() *sync.Mutex
 }
+
+type FaultNotification struct {
+    ProjectID string  `json:"project_id"`
+    Message   string  `json:"message"`
+    StartTime string  `json:"start_time"`
+    EndTime   string  `json:"end_time"`
+    Average   float64 `json:"average"`
+}

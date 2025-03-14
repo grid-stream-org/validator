@@ -23,5 +23,6 @@ gen/
 # Output files
 out/
 
-# Config file
+# Config file and json keys
 configs/config.json
+internal/config/*.json
