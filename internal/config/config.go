@@ -11,25 +11,25 @@ import (
 )
 
 type Config struct {
-	Log *logger.Config `koanf:"log"`
+	Log    *logger.Config `koanf:"log"`
 	Server struct {
 		Address string `koanf:"address"` // Add server address configuration
 	} `koanf:"server"`
 	SendGrid struct {
-		Api string `koanf:"key"`
+		Api    string `koanf:"key"`
 		Sender string `koanf:"sender"`
 	} `koanf:"sendgrid_api"`
 }
 
-func Load() (*Config, error){
-	k:= koanf.New(".")
-	path := filepath.Join("configs", "config.json")
-	if err := k.Load(file.Provider(path), json.Parser()); err != nil{
+func Load() (*Config, error) {
+	k := koanf.New(".")
+	path := filepath.Join("./internal/config/", "config.json")
+	if err := k.Load(file.Provider(path), json.Parser()); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	var cfg Config
-	if err := k.Unmarshal("", &cfg); err != nil{
+	if err := k.Unmarshal("", &cfg); err != nil {
 		return nil, errors.WithStack(err)
 	}
 

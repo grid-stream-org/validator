@@ -3,32 +3,32 @@ package report
 import (
 	"fmt"
 
-	"github.com/grid-stream-org/validator/internal/types"
+	"github.com/grid-stream-org/validator/internal/server"
 )
 
-func GenerateReport(v types.Validator, projectID string) string {
-    summary, exists := v.GetSummary(projectID)
+func GenerateReport(v *server.ValidatorServer, projectID string) string {
+	summary, exists := v.GetSummary(projectID)
 
-    if !exists {
-        return "No validation data available for this project."
-    }
+	if !exists {
+		return "No validation data available for this project."
+	}
 
-    report := "Validation Report\n"
-    report += "-----------------\n"
-    report += "Project ID: " + summary.ProjectID + "\n"
-    report += "Time Started: " + summary.TimeStarted + "\n"
-    report += "Time Ended: " + summary.TimeEnded + "\n"
-    report += "Contract Threshold: " + formatFloat(summary.ContractThreshold) + "\n\n"
-    report += "Total Violations: " + formatInt(len(summary.ViolationRecords)) + "\n\n"
+	report := "Validation Report\n"
+	report += "-----------------\n"
+	report += "Project ID: " + summary.ProjectID + "\n"
+	report += "Time Started: " + summary.TimeStarted + "\n"
+	report += "Time Ended: " + summary.TimeEnded + "\n"
+	report += "Contract Threshold: " + formatFloat(summary.ContractThreshold) + "\n\n"
+	report += "Total Violations: " + formatInt(len(summary.ViolationRecords)) + "\n\n"
 
-    if len(summary.ViolationRecords) > 0 {
-        report += "Violation Intervals:\n"
-        for _, violation := range summary.ViolationRecords {
-            report += "- Start: " + violation.StartTime + " | End: " + violation.EndTime + " | Average: " + formatFloat(violation.Average) + "\n"
-        }
-    }
+	if len(summary.ViolationRecords) > 0 {
+		report += "Violation Intervals:\n"
+		for _, violation := range summary.ViolationRecords {
+			report += "- Start: " + violation.StartTime + " | End: " + violation.EndTime + " | Average: " + formatFloat(violation.Average) + "\n"
+		}
+	}
 
-    return report
+	return report
 }
 
 func formatFloat(f float64) string {
