@@ -1,0 +1,36 @@
+name: build-and-release
+on:
+  push:
+    branches: [ main ]
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag
+        id: tag
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate to Google
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: "${{ secrets.GCP_SERVICE_ACC_KEY }}"
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-docker.pkg.dev
+
+      - name: Build and Push Docker Image
+        env:
+          TAG: ${{ steps.tag.outputs.new_tag }}
+        run: |
+          docker build -t us-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gridstream/validator:${TAG} .
+          docker push us-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/gridstream/validator:${TAG}
