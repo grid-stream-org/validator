@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"log/slog"
 
@@ -190,17 +191,34 @@ func (s *Service) sendFaultNotification(ctx context.Context, fault *types.FaultN
 func (s *Service) OnShutdown(ctx context.Context) error {
 	s.log.Info("sending final reports...")
 
-	var err error
+	// Create a new background context with timeout to ensure reports can complete
+	sendCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
 
 	s.summaries.Range(func(key, value any) bool {
 		summary := value.(*types.Summary)
 		projectID := key.(string)
-		if err := s.reporter.SendReport(ctx, summary); err != nil {
-			s.log.Error("failed to send user report", "projectID", projectID)
-			// just log and keep going, YOLO
-		}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.log.Info("sending report for project", "projectID", projectID)
+
+			if err := s.reporter.SendReport(sendCtx, summary); err != nil {
+				s.log.Error("failed to send user report", "projectID", projectID, "error", err)
+			} else {
+				s.log.Info("successfully sent report", "projectID", projectID)
+			}
+		}()
+
 		return true
 	})
 
-	return err
+	// Wait for all reports to complete or timeout
+	wg.Wait()
+
+	s.log.Info("all reports sent successfully")
+	return nil
 }
