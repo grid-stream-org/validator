@@ -1,0 +1,15 @@
+{
+  "log":{
+    "level": "DEBUG",
+    "format": "json",
+    "output": "stdout"
+  },
+  "server": {
+    "address": "REDACTED"
+  },
+
+  "sendgrid_api": {
+    "key": "REDACTED",
+    "sender": "REDACTED"
+  }
+}

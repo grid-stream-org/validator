@@ -46,9 +46,6 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 		}, nil
 	}
 
-	// s.lastRequestTime = time.Now() // Reset the timer
-	// go s.monitorDREvent()          // Start monitoring if not already
-
 	var validationErrors []*pb.ValidationError
 
 	// Iterate over all received average outputs
