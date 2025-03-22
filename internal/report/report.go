@@ -35,14 +35,12 @@ func (r *Reporter) SendReport(ctx context.Context, summary *types.Summary) error
 	}
 
 	reportContent := r.generateReport(summary)
-	r.log.Info("sending email report", "projectId", summary.ProjectID)
 
 	if err := r.sendEmail(userEmail, reportContent); err != nil {
 		r.log.Error("failed to send email", "projectId", summary.ProjectID, "error", err)
 		return err
 	}
 
-	r.log.Info("email successfully sent", "to", userEmail)
 	return nil
 }
 

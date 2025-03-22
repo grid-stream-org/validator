@@ -12,7 +12,6 @@ import (
 	"log/slog"
 
 	"github.com/grid-stream-org/api/pkg/firebase"
-	"github.com/grid-stream-org/batcher/pkg/logger"
 	pb "github.com/grid-stream-org/grid-stream-protos/gen/validator/v1"
 	"github.com/grid-stream-org/validator/internal/config"
 	"github.com/grid-stream-org/validator/internal/report"
@@ -41,7 +40,6 @@ func New(cfg *config.Config, fc firebase.FirebaseClient, log *slog.Logger) *Serv
 
 // ValidateAverageOutputs implements the ValidatorService RPC.
 func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAverageOutputsRequest) (*pb.ValidateAverageOutputsResponse, error) {
-	s.log.Info("ValidateAverageOutputs called", "project_count", len(req.AverageOutputs))
 
 	// Check if there are any average outputs in the request
 	if len(req.AverageOutputs) == 0 {
@@ -56,7 +54,6 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 
 	// Iterate over all received average outputs
 	for _, avg := range req.AverageOutputs {
-		logger.Default().Info("Validating project", "projectId", avg.ProjectId, "Average", avg.AverageOutput)
 
 		summaryIface, exists := s.summaries.Load(avg.ProjectId)
 
@@ -76,13 +73,6 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 
 		// Check if the average output violates the contract threshold
 		if avg.Baseline-avg.AverageOutput < avg.ContractThreshold {
-			logger.Default().Info("Validation not met for project", "projectId", avg.ProjectId, "Threshold", avg.ContractThreshold)
-
-			// Add a validation error for the project
-			validationErrors = append(validationErrors, &pb.ValidationError{
-				ProjectId: avg.ProjectId,
-				Message:   "Validation is below the threshold",
-			})
 
 			// Add a fault record
 			fault := types.ViolationRecord{
@@ -108,22 +98,12 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 
 	response := &pb.ValidateAverageOutputsResponse{
 		Success: len(validationErrors) == 0,
-		Errors:  validationErrors,
 	}
-
-	s.summaries.Range(func(key, value any) bool {
-		summary := value.(*types.Summary)
-		projectID := key.(string)
-
-		s.log.Info("Project Summary", "projectId", projectID, "Total Violations", len(summary.ViolationRecords))
-		return true
-	})
 
 	return response, nil
 }
 
 func (s *Service) sendFaultNotification(ctx context.Context, fault *types.FaultNotification) {
-	// Create a custom token for your service
 	customToken, err := s.fc.Auth().CustomToken(ctx, "validator-service")
 	if err != nil {
 		s.log.Error("Error creating custom token", "error", err)
@@ -160,7 +140,6 @@ func (s *Service) sendFaultNotification(ctx context.Context, fault *types.FaultN
 		return
 	}
 
-	// Make the API request with the token
 	frontendURL := "https://api.gridstream.app/v1/notifications"
 	jsonData, err := json.Marshal(fault)
 	if err != nil {
