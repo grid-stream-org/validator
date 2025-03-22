@@ -3,7 +3,6 @@ module github.com/grid-stream-org/validator
 go 1.23.2
 
 require (
-	firebase.google.com/go v3.13.0+incompatible
 	github.com/grid-stream-org/api v0.8.0
 	github.com/grid-stream-org/batcher v0.0.0-20250113153758-5ee2ed0e0433
 	github.com/grid-stream-org/grid-stream-protos v0.4.0
@@ -25,6 +24,7 @@ require (
 	cloud.google.com/go/iam v1.2.2 // indirect
 	cloud.google.com/go/longrunning v0.6.2 // indirect
 	cloud.google.com/go/storage v1.43.0 // indirect
+	firebase.google.com/go v3.13.0+incompatible // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
