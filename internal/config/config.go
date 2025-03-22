@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/grid-stream-org/api/pkg/firebase"
@@ -30,8 +31,12 @@ type SendGridConfig struct {
 
 func Load() (*Config, error) {
 	k := koanf.New(".")
-	path := filepath.Join("./configs", "config.json")
 
+	path := os.Getenv("CONFIG_PATH")
+	if path == "" {
+		path = filepath.Join("configs", "config.json")
+		logger.Default().Info("CONFIG_PATH not set, using default", "path", path)
+	}
 	if err := k.Load(file.Provider(path), json.Parser()); err != nil {
 		return nil, errors.WithStack(err)
 	}
