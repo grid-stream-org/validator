@@ -2,10 +2,10 @@ package validator
 
 import (
 	"context"
+	"log/slog"
 	"net"
 
-	"log/slog"
-
+	"github.com/grid-stream-org/api/pkg/firebase"
 	pb "github.com/grid-stream-org/grid-stream-protos/gen/validator/v1"
 	"github.com/grid-stream-org/validator/internal/config"
 	"github.com/grid-stream-org/validator/internal/handler"
@@ -19,16 +19,14 @@ type Server struct {
 	log        *slog.Logger
 }
 
-func New(cfg *config.Config, log *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, fc firebase.FirebaseClient, log *slog.Logger) (*Server, error) {
 	lis, err := net.Listen("tcp", cfg.Server.Address)
 	if err != nil {
 		return nil, err
 	}
-
 	grpcServer := grpc.NewServer()
-	h := handler.New(cfg, log)
+	h := handler.New(cfg, fc, log)
 	pb.RegisterValidatorServiceServer(grpcServer, h)
-
 	return &Server{
 		grpcServer: grpcServer,
 		listener:   lis,
@@ -40,26 +38,30 @@ func New(cfg *config.Config, log *slog.Logger) (*Server, error) {
 func (s *Server) Run(ctx context.Context, log *slog.Logger) error {
 	log.Info("starting gRPC server", "address", s.listener.Addr().String())
 
+	// Run server in a goroutine
 	go func() {
-		if err := s.grpcServer.Serve(s.listener); err != nil {
-			log.Error("gRPC server error", "err", err)
+		if err := s.grpcServer.Serve(s.listener); err != nil && err != grpc.ErrServerStopped {
+			log.Error("server error", "err", err)
 		}
 	}()
 
+	// Wait for context cancellation
 	<-ctx.Done()
-	s.grpcServer.GracefulStop()
-	log.Info("server stopped")
-	return nil
+
+	// Trigger shutdown process
+	s.Stop(ctx)
+
+	return ctx.Err()
 }
 
 func (s *Server) Stop(ctx context.Context) {
 	s.log.Info("shutting down server...")
 
-	// Gracefully stop gRPC
+	// Stop the gRPC server
 	s.grpcServer.GracefulStop()
 
-	// Call shutdown logic on handler
+	// Execute shutdown handler
 	if err := s.handler.OnShutdown(ctx); err != nil {
-		s.log.Error("failed to complete shutdown tasks", "error", err)
+		s.log.Error("shutdown tasks failed", "error", err)
 	}
 }

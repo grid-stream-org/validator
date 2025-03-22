@@ -3,6 +3,7 @@ package config
 import (
 	"path/filepath"
 
+	"github.com/grid-stream-org/api/pkg/firebase"
 	"github.com/grid-stream-org/batcher/pkg/logger"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/providers/file"
@@ -11,19 +12,26 @@ import (
 )
 
 type Config struct {
-	Log    *logger.Config `koanf:"log"`
-	Server struct {
-		Address string `koanf:"address"` // Add server address configuration
-	} `koanf:"server"`
-	SendGrid struct {
-		Api    string `koanf:"key"`
-		Sender string `koanf:"sender"`
-	} `koanf:"sendgrid_api"`
+	Log       *logger.Config           `koanf:"log"`
+	Server    *ServerConfig            `koanf:"server"`
+	SendGrid  *SendGridConfig          `koanf:"sendgrid_api"`
+	Firebase  *firebase.FirebaseConfig `koanf:"firebase"`
+	WebAPIKey string                   `koanf:"web_api_key"`
+}
+
+type ServerConfig struct {
+	Address string `koanf:"address"`
+}
+
+type SendGridConfig struct {
+	Api    string `koanf:"key"`
+	Sender string `koanf:"sender"`
 }
 
 func Load() (*Config, error) {
 	k := koanf.New(".")
-	path := filepath.Join("./internal/config/", "config.json")
+	path := filepath.Join("./configs", "config.json")
+
 	if err := k.Load(file.Provider(path), json.Parser()); err != nil {
 		return nil, errors.WithStack(err)
 	}

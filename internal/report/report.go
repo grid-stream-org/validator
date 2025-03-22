@@ -1,109 +1,108 @@
 package report
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
+	"strings"
 
-	"github.com/grid-stream-org/batcher/pkg/logger"
+	"github.com/grid-stream-org/api/pkg/firebase"
 	"github.com/grid-stream-org/validator/internal/config"
 	"github.com/grid-stream-org/validator/internal/types"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-// API needs to change
-const apiURL = "http://your-api-url.com/user-email?projectID="
+type Reporter struct {
+	cfg *config.Config
+	fc  firebase.FirebaseClient
+	log *slog.Logger
+}
 
-func SendUserReport(cfg *config.Config, log *slog.Logger, summary *types.Summary) error {
-	projectID := summary.ProjectID
-	userEmail, err := getUserEmail(projectID)
+func New(cfg *config.Config, fc firebase.FirebaseClient, log *slog.Logger) *Reporter {
+	return &Reporter{
+		cfg: cfg,
+		fc:  fc,
+		log: log,
+	}
+}
+
+func (r *Reporter) SendReport(ctx context.Context, summary *types.Summary) error {
+	userEmail, err := r.getUserEmail(ctx, summary.ProjectID)
 	if err != nil {
-		log.Error("error fetching user email", "projectId", projectID, "error", err)
+		r.log.Error("error fetching user email", "projectId", summary.ProjectID, "error", err)
 		return err
 	}
 
-	reportContent := generateReport(summary)
-	log.Info("sending email report", "projectId", projectID)
+	reportContent := r.generateReport(summary)
+	r.log.Info("sending email report", "projectId", summary.ProjectID)
 
-	if err := sendEmail(cfg, log, userEmail, reportContent); err != nil {
-		log.Error("failed to send email", "projectId", projectID, "error", err)
+	if err := r.sendEmail(userEmail, reportContent); err != nil {
+		r.log.Error("failed to send email", "projectId", summary.ProjectID, "error", err)
 		return err
 	}
 
-	log.Info("email successfully sent", "to", userEmail)
+	r.log.Info("email successfully sent", "to", userEmail)
 	return nil
 }
 
-// getUserEmail queries the API for the user's email based on the project ID
-func getUserEmail(projectID string) (string, error) {
+func (r *Reporter) getUserEmail(ctx context.Context, projectID string) (string, error) {
+	usersRef := r.fc.Firestore().Collection("users")
+	query := usersRef.Where("projectId", "==", projectID).Limit(1)
 
-	response, err := http.Get(apiURL + projectID)
+	docs, err := query.Documents(ctx).GetAll()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error querying users: %w", err)
 	}
 
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API request failed with status %d", response.StatusCode)
+	if len(docs) == 0 {
+		return "", fmt.Errorf("no user found with project ID: %s", projectID)
 	}
 
-	email, err := io.ReadAll(response.Body)
-	if err != nil {
-		return "", err
+	userData := docs[0].Data()
+	email, ok := userData["email"].(string)
+	if !ok {
+		return "", fmt.Errorf("user found but email field is missing or invalid")
 	}
 
-	return string(email), nil
+	return email, nil
 }
 
-// Send Email to user
-func sendEmail(cfg *config.Config, log *slog.Logger, to, body string) error {
-	log.Info("Sending Email")
+func (r *Reporter) sendEmail(to, body string) error {
 	subject := "Your Demand Response Event Report"
-
-	from := mail.NewEmail("GridStream Reports", cfg.SendGrid.Sender)
+	from := mail.NewEmail("GridStream Reports", r.cfg.SendGrid.Sender)
 	toMail := mail.NewEmail(to, to)
 	content := mail.NewContent("text/plain", body)
-
 	message := mail.NewV3MailInit(from, subject, toMail, content)
 
-	client := sendgrid.NewSendClient(cfg.SendGrid.Api)
+	client := sendgrid.NewSendClient(r.cfg.SendGrid.Api)
 	response, err := client.Send(message)
 	if err != nil {
 		return err
 	}
 
-	logger.Default().Info("EMAIL SENT", "response", response)
+	r.log.Info("email sent", "status", response.StatusCode)
 	return nil
-
 }
 
-func generateReport(summary *types.Summary) string {
+func (r *Reporter) generateReport(summary *types.Summary) string {
+	var sb strings.Builder
 
-	report := "Validation Report\n"
-	report += "-----------------\n"
-	report += "Project ID: " + summary.ProjectID + "\n"
-	report += "Time Started: " + summary.TimeStarted + "\n"
-	report += "Time Ended: " + summary.TimeEnded + "\n"
-	report += "Contract Threshold: " + formatFloat(summary.ContractThreshold) + "\n\n"
-	report += "Total Violations: " + formatInt(len(summary.ViolationRecords)) + "\n\n"
+	sb.WriteString("Validation Report\n")
+	sb.WriteString("-----------------\n")
+	sb.WriteString(fmt.Sprintf("Project ID: %s\n", summary.ProjectID))
+	sb.WriteString(fmt.Sprintf("Time Started: %s\n", summary.TimeStarted))
+	sb.WriteString(fmt.Sprintf("Time Ended: %s\n", summary.TimeEnded))
+	sb.WriteString(fmt.Sprintf("Contract Threshold: %.2f\n\n", summary.ContractThreshold))
+	sb.WriteString(fmt.Sprintf("Total Violations: %d\n\n", len(summary.ViolationRecords)))
 
 	if len(summary.ViolationRecords) > 0 {
-		report += "Violation Intervals:\n"
+		sb.WriteString("Violation Intervals:\n")
 		for _, violation := range summary.ViolationRecords {
-			report += "- Start: " + violation.StartTime + " | End: " + violation.EndTime + " | Average: " + formatFloat(violation.Average) + "\n"
+			sb.WriteString(fmt.Sprintf("- Start: %s | End: %s | Average: %.2f\n",
+				violation.StartTime, violation.EndTime, violation.Average))
 		}
 	}
 
-	return report
-}
-
-func formatFloat(f float64) string {
-	return fmt.Sprintf("%.2f", f)
-}
-
-func formatInt(i int) string {
-	return fmt.Sprintf("%d", i)
+	return sb.String()
 }

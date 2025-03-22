@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"sync"
 
 	"log/slog"
 
+	"github.com/grid-stream-org/api/pkg/firebase"
 	"github.com/grid-stream-org/batcher/pkg/logger"
 	pb "github.com/grid-stream-org/grid-stream-protos/gen/validator/v1"
 	"github.com/grid-stream-org/validator/internal/config"
@@ -20,26 +21,30 @@ import (
 type Service struct {
 	pb.UnimplementedValidatorServiceServer
 	summaries *sync.Map
-	Log       *slog.Logger
-	Cfg       *config.Config
+	fc        firebase.FirebaseClient
+	reporter  *report.Reporter
+	log       *slog.Logger
+	cfg       *config.Config
 }
 
 // New returns a new Validator gRPC service handler.
-func New(cfg *config.Config, log *slog.Logger) *Service {
+func New(cfg *config.Config, fc firebase.FirebaseClient, log *slog.Logger) *Service {
 	return &Service{
-		Log:       log.With("component", "handler"),
+		log:       log.With("component", "handler"),
+		reporter:  report.New(cfg, fc, log),
+		fc:        fc,
 		summaries: new(sync.Map),
-		Cfg:       cfg,
+		cfg:       cfg,
 	}
 }
 
 // ValidateAverageOutputs implements the ValidatorService RPC.
 func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAverageOutputsRequest) (*pb.ValidateAverageOutputsResponse, error) {
-	s.Log.Info("ValidateAverageOutputs called", "project_count", len(req.AverageOutputs))
+	s.log.Info("ValidateAverageOutputs called", "project_count", len(req.AverageOutputs))
 
 	// Check if there are any average outputs in the request
 	if len(req.AverageOutputs) == 0 {
-		s.Log.Info("No averages found")
+		s.log.Info("No averages found")
 		return &pb.ValidateAverageOutputsResponse{
 			Success: false,
 			Errors:  []*pb.ValidationError{},
@@ -96,7 +101,7 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 				EndTime:   avg.EndTime,
 				Average:   avg.AverageOutput,
 			}
-			go s.sendFaultNotification(notification)
+			go s.sendFaultNotification(ctx, notification)
 		}
 	}
 
@@ -109,42 +114,89 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 		summary := value.(*types.Summary)
 		projectID := key.(string)
 
-		s.Log.Info("Project Summary", "projectId", projectID, "Total Violations", len(summary.ViolationRecords))
+		s.log.Info("Project Summary", "projectId", projectID, "Total Violations", len(summary.ViolationRecords))
 		return true
 	})
 
 	return response, nil
 }
 
-func (s *Service) sendFaultNotification(fault *types.FaultNotification) {
-	frontendURL := "https://api.gridstream.app/v1/notifications"
-
-	jsonData, err := json.Marshal(fault)
+func (s *Service) sendFaultNotification(ctx context.Context, fault *types.FaultNotification) {
+	// Create a custom token for your service
+	customToken, err := s.fc.Auth().CustomToken(ctx, "validator-service")
 	if err != nil {
-		log.Println("Error marshalling JSON:", err)
+		s.log.Error("Error creating custom token", "error", err)
 		return
 	}
 
-	resp, err := http.Post(frontendURL, "application/json", bytes.NewBuffer(jsonData))
+	// Exchange for ID token
+	exchangeURL := fmt.Sprintf("https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=%s", s.cfg.WebAPIKey)
+
+	exchangeData := map[string]string{
+		"token":             customToken,
+		"returnSecureToken": "true",
+	}
+
+	exchangeJSON, err := json.Marshal(exchangeData)
 	if err != nil {
-		log.Println("Error sending fault notification:", err)
+		s.log.Error("Error marshalling token request", "error", err)
+		return
+	}
+
+	exchangeResp, err := http.Post(exchangeURL, "application/json", bytes.NewBuffer(exchangeJSON))
+	if err != nil {
+		s.log.Error("Error exchanging token", "error", err)
+		return
+	}
+	defer exchangeResp.Body.Close()
+
+	var tokenResponse struct {
+		IdToken string `json:"idToken"`
+	}
+
+	if err := json.NewDecoder(exchangeResp.Body).Decode(&tokenResponse); err != nil {
+		s.log.Error("Error decoding token response", "error", err)
+		return
+	}
+
+	// Make the API request with the token
+	frontendURL := "https://api.gridstream.app/v1/notifications"
+	jsonData, err := json.Marshal(fault)
+	if err != nil {
+		s.log.Error("Error marshalling JSON", "error", err)
+		return
+	}
+
+	req, err := http.NewRequest("POST", frontendURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		s.log.Error("Error creating request", "error", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+tokenResponse.IdToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.log.Error("Error sending fault notification", "error", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	log.Println("Fault notification sent successfully, response:", resp.Status)
+	s.log.Info("Fault notification sent successfully", "status", resp.Status)
 }
 
 func (s *Service) OnShutdown(ctx context.Context) error {
-	s.Log.Info("sending final reports...")
+	s.log.Info("sending final reports...")
 
 	var err error
 
 	s.summaries.Range(func(key, value any) bool {
 		summary := value.(*types.Summary)
 		projectID := key.(string)
-		if err := report.SendUserReport(s.Cfg, s.Log, summary); err != nil {
-			s.Log.Error("failed to send user report", "projectID:", projectID)
+		if err := s.reporter.SendReport(ctx, summary); err != nil {
+			s.log.Error("failed to send user report", "projectID", projectID)
 			// just log and keep going, YOLO
 		}
 		return true

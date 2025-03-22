@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
 
+	"github.com/grid-stream-org/api/pkg/firebase"
 	"github.com/grid-stream-org/batcher/pkg/logger"
 	"github.com/grid-stream-org/batcher/pkg/sigctx"
 	"github.com/grid-stream-org/validator/internal/config"
@@ -28,8 +27,8 @@ func main() {
 }
 
 func run() (err error) {
-	// ctx, cancel := sigctx.New(context.Background())
-	// defer cancel()
+	ctx, cancel := sigctx.New(context.Background())
+	defer cancel()
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -41,33 +40,21 @@ func run() (err error) {
 		return err
 	}
 
-	log.Info("Starting Validator Server...")
+	fc, err := firebase.NewFirebaseClient(ctx, cfg.Firebase, log)
+	if err != nil {
+		return err
+	}
+	defer fc.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Listen for system interrupt signals
-	go func() {
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-		<-ch
-		cancel() // Cancel context when signal is received
-	}()
-
-	srv, err := validator.New(cfg, log)
+	srv, err := validator.New(cfg, fc, log)
 	if err != nil {
 		return err
 	}
 
-	// Run the server
+	log.Info("Starting Validator Server...")
 	if runErr := srv.Run(ctx, log); runErr != nil {
 		err = multierr.Combine(err, runErr)
 	}
-
-	// Stop the server gracefully
-	<-ctx.Done()
-
-	srv.Stop(ctx)
 
 	return err
 }

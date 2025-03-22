@@ -7,9 +7,13 @@
   "server": {
     "address": "REDACTED"
   },
-
   "sendgrid_api": {
     "key": "REDACTED",
     "sender": "REDACTED"
-  }
+  },
+  "firebase": {
+    "project_id": "REDACTED",
+    "google_credential": "REDACTED"
+  },
+  "web_api_key": "REDACTED"
 }
