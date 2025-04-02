@@ -65,6 +65,7 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 			summary = &types.Summary{
 				ProjectID:         avg.ProjectId,
 				TimeStarted:       avg.StartTime,
+				TimeEnded:         avg.EndTime,
 				ContractThreshold: avg.ContractThreshold,
 				ViolationRecords:  []types.ViolationRecord{},
 			}
