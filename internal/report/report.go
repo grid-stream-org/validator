@@ -89,8 +89,8 @@ func (r *Reporter) generateReport(summary *types.Summary) string {
 	sb.WriteString("Validation Report\n")
 	sb.WriteString("-----------------\n")
 	sb.WriteString(fmt.Sprintf("Project ID: %s\n", summary.ProjectID))
-	sb.WriteString(fmt.Sprintf("Time Started: %s\n", summary.TimeStarted))
-	sb.WriteString(fmt.Sprintf("Time Ended: %s\n", summary.TimeEnded))
+	sb.WriteString(fmt.Sprintf("Time Started (UTC): %s\n", summary.TimeStarted))
+	sb.WriteString(fmt.Sprintf("Time Ended (UTC): %s\n", summary.TimeEnded))
 	sb.WriteString(fmt.Sprintf("Contract Threshold: %.2f\n\n", summary.ContractThreshold))
 	sb.WriteString(fmt.Sprintf("Total Violations: %d\n\n", len(summary.ViolationRecords)))
 
