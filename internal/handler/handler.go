@@ -73,13 +73,14 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 		}
 
 		// Check if the average output violates the contract threshold
-		if avg.Baseline-avg.AverageOutput < avg.ContractThreshold {
+		reduction := avg.Baseline - avg.AverageOutput
+		if reduction < avg.ContractThreshold {
 
 			// Add a fault record
 			fault := types.ViolationRecord{
 				StartTime: avg.StartTime,
 				EndTime:   avg.EndTime,
-				Average:   avg.AverageOutput,
+				Average:   reduction,
 			}
 
 			summary.ViolationRecords = append(summary.ViolationRecords, fault)
@@ -91,7 +92,7 @@ func (s *Service) ValidateAverageOutputs(ctx context.Context, req *pb.ValidateAv
 				Message:   "Validation is below the threshold",
 				StartTime: avg.StartTime,
 				EndTime:   avg.EndTime,
-				Average:   avg.AverageOutput,
+				Average:   reduction,
 			}
 			go s.sendFaultNotification(ctx, notification)
 		}
