@@ -77,8 +77,8 @@ github.com/googleapis/enterprise-certificate-proxy v0.3.4 h1:XYIDZApgAnrN1c855gT
 github.com/googleapis/enterprise-certificate-proxy v0.3.4/go.mod h1:YKe7cfqYXjKGpGvmSg28/fFvhNzinZQm8DGnaburhGA=
 github.com/googleapis/gax-go/v2 v2.14.1 h1:hb0FFeiPaQskmvakKu5EbCbpntQn48jyHuvrkurSS/Q=
 github.com/googleapis/gax-go/v2 v2.14.1/go.mod h1:Hb/NubMaVM88SrNkvl8X/o8XWwDJEPqouaLeN2IUxoA=
-github.com/grid-stream-org/api v0.8.0 h1:930FykbYwQxv69WWGJW2ujB8gtZqcBIJ3IJ0afk7kEU=
-github.com/grid-stream-org/api v0.8.0/go.mod h1:K6cng4YHMFrf3zVH7Er03xvrfMCy2/GvZk0vkeOS54A=
+github.com/grid-stream-org/api v0.9.2 h1:e1/cs4p2h3SPoLAfSwiE9+0E710RAGYADLnSrZvoC/c=
+github.com/grid-stream-org/api v0.9.2/go.mod h1:K6cng4YHMFrf3zVH7Er03xvrfMCy2/GvZk0vkeOS54A=
 github.com/grid-stream-org/batcher v0.0.0-20250113153758-5ee2ed0e0433 h1:03HWE3xBm5KeJ7XzLuEyM+4zFUJFBA3L2nOsNxZYdwk=
 github.com/grid-stream-org/batcher v0.0.0-20250113153758-5ee2ed0e0433/go.mod h1:n/+QbdXtJYgGWgkWzKe/sXDkEomqfx0G8HHbwFh0MJI=
 github.com/grid-stream-org/grid-stream-protos v0.4.0 h1:ZToIaHUx4QFy5PBXvPBscDUl/fAajfVA2Fl/K1ROHik=
