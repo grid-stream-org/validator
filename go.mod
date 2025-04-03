@@ -2,8 +2,10 @@ module github.com/grid-stream-org/validator
 
 go 1.23.2
 
+toolchain go1.24.1
+
 require (
-	github.com/grid-stream-org/api v0.8.0
+	github.com/grid-stream-org/api v0.9.3
 	github.com/grid-stream-org/batcher v0.0.0-20250113153758-5ee2ed0e0433
 	github.com/grid-stream-org/grid-stream-protos v0.4.0
 	github.com/knadh/koanf/parsers/json v0.1.0
